@@ -1,0 +1,1 @@
+{"version":3,"file":"forwarder.d.ts","sourceRoot":"","sources":["../../src/services/forwarder.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,YAAY,EAAE,cAAc,EAAE,MAAM,SAAS,CAAC;AAI5D,OAAO,KAAK,EAAE,SAAS,EAAE,MAAM,cAAc,CAAC;AAe9C,wBAAsB,cAAc,CAClC,cAAc,EAAE,cAAc,EAC9B,YAAY,EAAE,YAAY,EAC1B,MAAM,EAAE,SAAS,GAChB,OAAO,CAAC,YAAY,CAAC,CAqEvB"}
