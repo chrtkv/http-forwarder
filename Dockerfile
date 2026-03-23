@@ -23,4 +23,4 @@ ENV HEARTBEAT_PATH=/health
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- "http://127.0.0.1:3000/health" || exit 1
 
-CMD ["node", "src/server.js"]
+CMD ["node", "./node_modules/tsx/dist/cli.mjs", "src/server.ts"]
