@@ -9,10 +9,10 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY src ./src
 
-RUN addgroup -g 1001 -S app && adduser -S app -u 1001 -G app \
-  && chown -R app:app /app
+RUN addgroup -g 1001 -S forwarder && adduser -S forwarder -u 1001 -G forwarder \
+  && chown -R forwarder:forwarder /app
 
-USER app
+USER forwarder
 
 EXPOSE 3000
 
