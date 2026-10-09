@@ -99,6 +99,38 @@ describe(
       }
     });
 
+    test('heartbeat path does not exempt other methods from the IP whitelist', async () => {
+      let upstreamHits = 0;
+      const upstream = createServer((_req, res) => {
+        upstreamHits += 1;
+        res.end('reached');
+      });
+      await new Promise<void>((resolve, reject) => {
+        upstream.listen(0, '127.0.0.1', (err?: Error) => (err ? reject(err) : resolve()));
+      });
+      const uAddr = upstream.address();
+      const uPort = typeof uAddr === 'object' && uAddr ? uAddr.port : 0;
+      const config = cfg({ TRUSTED_IPS: '10.0.0.1' });
+      const app = await buildApp(config);
+      await app.listen({ port: 0, host: '127.0.0.1' });
+      try {
+        const addr = app.server.address();
+        const port = typeof addr === 'object' && addr ? addr.port : 0;
+        for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'HEAD']) {
+          const res = await fetch(`http://127.0.0.1:${port}/health`, {
+            ...fetchOpts,
+            method,
+            headers: { 'x-forward-url': `http://127.0.0.1:${uPort}/` },
+          });
+          assert.equal(res.status, 403, `${method} /health`);
+        }
+        assert.equal(upstreamHits, 0);
+      } finally {
+        upstream.close();
+        await app.close();
+      }
+    });
+
     test('TRUST_PROXY uses X-Forwarded-For for whitelist', async () => {
       const upstream = await createEchoUpstream();
       const config = cfg({ TRUST_PROXY: 'true', TRUSTED_IPS: '10.0.0.1' });
