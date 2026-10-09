@@ -6,7 +6,7 @@ Internal-only Fastify service that forwards HTTP requests to a URL supplied in a
 
 - **Internal use only.** Do not expose this service to the public internet. Callers can point requests at arbitrary URLs (SSRF risk) and may put sensitive tokens in headers or encoded URLs.
 - **Trust model:** Anyone who can reach the service from a whitelisted IP can trigger outbound HTTP(S) from the forwarder. Combine network controls, strict `TRUSTED_IPS`, and mutual TLS or private networking as appropriate.
-- **Logging:** Full target URLs are not logged by default; only the target **hostname** is included when the forward header is present.
+- **Logging:** Every request is logged once when it completes (`request_complete`: method, path, client address, status, time, and the target **hostname** — never the full target URL, which may carry a token). The heartbeat is not logged. Upstream failures add an `upstream request failed` line with the same `reqId`.
 
 ## Requirements
 

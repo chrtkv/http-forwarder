@@ -1,15 +1,19 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import type { AppConfig } from './config.js';
-import { loggingPlugin } from './plugins/logging.js';
+import { registerRequestLogging } from './plugins/logging.js';
 import { registerIpWhitelist } from './middleware/ipWhitelist.js';
 import { registerForwardRoutes } from './routes/forward.js';
 
 const ALLOWED_METHODS = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE']);
 
-export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
+/** `logStream` replaces stdout for the logger (tests read the log lines from it). */
+export async function buildApp(
+  config: AppConfig,
+  logStream?: { write: (msg: string) => void },
+): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: { level: process.env.LOG_LEVEL ?? 'info' },
+    logger: { level: process.env.LOG_LEVEL ?? 'info', ...(logStream ? { stream: logStream } : {}) },
     disableRequestLogging: true,
     trustProxy: config.TRUST_PROXY,
     bodyLimit: config.MAX_BODY_BYTES,
@@ -22,7 +26,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
     },
   }) as FastifyInstance;
 
-  await app.register(loggingPlugin, { config });
+  registerRequestLogging(app, config);
 
   app.addHook('onRequest', async (request, reply) => {
     if (!ALLOWED_METHODS.has(request.method)) {
