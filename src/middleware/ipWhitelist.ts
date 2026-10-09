@@ -83,9 +83,11 @@ export function registerIpWhitelist(app: FastifyInstance, config: AppConfig): vo
   const check = buildWhitelistCheck(config.TRUSTED_IPS);
 
   app.addHook('onRequest', async (request, reply) => {
-    const path = request.url.split('?')[0];
-    if (path === heartbeatPath) return;
+    // Exempt only requests routed to the heartbeat handler (GET). Matching the raw path also exempted
+    // POST/PUT/PATCH/DELETE/HEAD on it, which the catch-all forward route serves.
+    if (request.routeOptions.url === heartbeatPath) return;
 
+    const path = request.url.split('?')[0];
     const rawIp = request.ip;
     const clientAddr = parseClientIp(rawIp);
     if (!clientAddr || !check(clientAddr)) {

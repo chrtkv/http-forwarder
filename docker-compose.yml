@@ -4,7 +4,7 @@ services:
     image: forwarder:latest
     restart: unless-stopped
     ports:
-      - "${PORT:-3000}:${PORT:-3000}"
+      - "127.0.0.1:${PORT:-3000}:${PORT:-3000}"
     environment:
       PORT: ${PORT:-3000}
       HEARTBEAT_PATH: ${HEARTBEAT_PATH:-/health}

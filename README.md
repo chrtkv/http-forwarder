@@ -21,7 +21,7 @@ Environment variables (see [`.env.example`](.env.example)):
 | `PORT` | HTTP listen port (default **`3000`**). Set to any free port when another service already uses `3000` on the same host. |
 | `HEARTBEAT_PATH` | Liveness path (default `/health`) |
 | `FORWARD_TARGET_HEADER` | Header carrying the absolute upstream URL (default `x-forward-url`) |
-| `TRUSTED_IPS` | Comma-separated IPv4/IPv6 addresses or CIDR ranges allowed to use the forwarder (heartbeat is exempt) |
+| `TRUSTED_IPS` | Comma-separated IPv4/IPv6 addresses or CIDR ranges allowed to use the forwarder (`GET` on the heartbeat path is exempt) |
 | `TRUST_PROXY` | If `true`, trust `X-Forwarded-For` for client IP (place the service behind a trusted reverse proxy) |
 | `UPSTREAM_TIMEOUT_MS` | Upstream request timeout |
 | `MAX_BODY_BYTES` | Maximum request body size |
@@ -57,9 +57,9 @@ make docker-build
 make up
 ```
 
-The published host port and the process listen port inside the container both follow **`PORT`** (default `3000`).
+The published host port and the process listen port inside the container both follow **`PORT`** (default `3000`). Compose publishes the port on **`127.0.0.1` only**: remote clients should come through a reverse proxy on the host (TLS, client allowlist). Requests from the host reach the container from the Docker network's gateway address (e.g. `172.20.0.1`), so that is the address to list in `TRUSTED_IPS` for them.
 
-Compose includes an [autoheal](https://hub.docker.com/r/willfarrell/autoheal) sidecar that restarts unhealthy containers. Set `TRUSTED_IPS` to include every client that may call the forwarder. **Heartbeat requests skip the IP whitelist**, so Docker health checks do not require listing `127.0.0.1` unless you also hit other routes from localhost.
+Compose includes an [autoheal](https://hub.docker.com/r/willfarrell/autoheal) sidecar that restarts unhealthy containers. Set `TRUSTED_IPS` to include every client that may call the forwarder. **`GET` heartbeat requests skip the IP whitelist** (other methods on that path do not), so Docker health checks do not require listing `127.0.0.1` unless you also hit other routes from localhost.
 
 ## Development
 
