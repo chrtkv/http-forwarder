@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import type { AppConfig } from '../config.js';
 
 function targetHostFromRequest(
@@ -15,10 +15,11 @@ function targetHostFromRequest(
   }
 }
 
-type LoggingOpts = { config: AppConfig };
-
-export const loggingPlugin: FastifyPluginAsync<LoggingOpts> = async (app, opts) => {
-  const { config } = opts;
+/**
+ * Hooks go on the root instance, like the whitelist: as a registered plugin they were encapsulated
+ * and never ran for the routes, so no request was ever logged.
+ */
+export function registerRequestLogging(app: FastifyInstance, config: AppConfig): void {
   const forwardHeaderLower = config.FORWARD_TARGET_HEADER.toLowerCase();
 
   app.addHook('onRequest', async (request) => {
@@ -26,13 +27,15 @@ export const loggingPlugin: FastifyPluginAsync<LoggingOpts> = async (app, opts) 
   });
 
   app.addHook('onResponse', async (request, reply) => {
+    // Docker's healthcheck hits the heartbeat every 30 s; logging it would bury the relays.
+    if (request.routeOptions.url === config.HEARTBEAT_PATH) return;
+
     const path = request.url.split('?')[0];
     const ms = Date.now() - (request.forwarderStartMs ?? Date.now());
     const targetHost = targetHostFromRequest(request, forwardHeaderLower);
     request.log.info(
       {
         event: 'request_complete',
-        reqId: request.id,
         method: request.method,
         path,
         sourceIp: request.ip,
@@ -43,4 +46,4 @@ export const loggingPlugin: FastifyPluginAsync<LoggingOpts> = async (app, opts) 
       'request complete',
     );
   });
-};
+}

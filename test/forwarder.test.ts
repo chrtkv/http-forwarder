@@ -221,6 +221,42 @@ describe(
       }
     });
 
+    test('each relay is logged with its target host, never the full URL; the heartbeat is not', async () => {
+      const upstream = await createEchoUpstream();
+      const lines: Array<Record<string, unknown>> = [];
+      const logStream = {
+        write: (msg: string) => {
+          lines.push(JSON.parse(msg) as Record<string, unknown>);
+        },
+      };
+      const app = await buildApp(cfg({}), logStream);
+      await app.listen({ port: 0, host: '127.0.0.1' });
+      try {
+        const addr = app.server.address();
+        const port = typeof addr === 'object' && addr ? addr.port : 0;
+        const relay = await fetch(`http://127.0.0.1:${port}/x`, {
+          ...fetchOpts,
+          headers: { 'x-forward-url': `${upstream.origin}/echo?token=secret-value` },
+        });
+        assert.equal(relay.status, 200);
+        await relay.arrayBuffer();
+        const health = await fetch(`http://127.0.0.1:${port}/health`, fetchOpts);
+        assert.equal(health.status, 200);
+        await health.arrayBuffer();
+      } finally {
+        await app.close();
+        await upstream.close();
+      }
+      const completed = lines.filter((l) => l.event === 'request_complete');
+      assert.equal(completed.length, 1);
+      assert.equal(completed[0].method, 'GET');
+      assert.equal(completed[0].path, '/x');
+      assert.equal(completed[0].statusCode, 200);
+      assert.equal(completed[0].sourceIp, '127.0.0.1');
+      assert.equal(completed[0].targetHost, '127.0.0.1');
+      assert.ok(!lines.some((l) => JSON.stringify(l).includes('secret-value')));
+    });
+
     test('OPTIONS returns 405', async () => {
       const config = cfg({});
       const app = await buildApp(config);
