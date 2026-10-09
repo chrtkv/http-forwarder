@@ -63,6 +63,8 @@ The published host port and the process listen port inside the container both fo
 
 Compose includes an [autoheal](https://hub.docker.com/r/willfarrell/autoheal) sidecar that restarts unhealthy containers. Set `TRUSTED_IPS` to include every client that may call the forwarder. **`GET` heartbeat requests skip the IP whitelist** (other methods on that path do not), so Docker health checks do not require listing `127.0.0.1` unless you also hit other routes from localhost.
 
+Both containers log through the `json-file` driver with rotation: up to `LOG_MAX_FILE` files (default `5`) of `LOG_MAX_SIZE` each (default `10m`), so `docker logs` reaches back only that far.
+
 ## Development
 
 ```bash

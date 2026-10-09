@@ -1,3 +1,9 @@
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "${LOG_MAX_SIZE:-10m}"
+    max-file: "${LOG_MAX_FILE:-5}"
+
 services:
   forwarder:
     build: .
@@ -26,9 +32,11 @@ services:
       start_period: ${HEALTHCHECK_START_PERIOD:-10s}
     labels:
       autoheal: "true"
+    logging: *logging
 
   autoheal:
     image: willfarrell/autoheal:latest
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    logging: *logging
