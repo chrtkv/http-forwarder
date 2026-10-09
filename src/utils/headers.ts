@@ -23,6 +23,15 @@ const HOP_BY_HOP_RESPONSE = new Set([
   'upgrade',
 ]);
 
+/** They describe the hop into the forwarder (the caller's or proxy's address), not the upstream request. */
+const PROXY_CHAIN_REQUEST = new Set([
+  'forwarded',
+  'x-forwarded-for',
+  'x-forwarded-host',
+  'x-forwarded-proto',
+  'x-real-ip',
+]);
+
 function parseConnectionTokens(value: IncomingHttpHeaders['connection']): string[] {
   if (!value || typeof value !== 'string') return [];
   return value.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean);
@@ -42,6 +51,7 @@ export function buildUpstreamRequestHeaders(
     if (lower === forwardHeaderLower) continue;
     if (lower === 'host') continue;
     if (HOP_BY_HOP_REQUEST.has(lower)) continue;
+    if (PROXY_CHAIN_REQUEST.has(lower)) continue;
     if (connectionTokens.has(lower)) continue;
     out[key] = rawVal;
   }
