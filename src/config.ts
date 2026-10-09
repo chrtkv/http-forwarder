@@ -14,10 +14,21 @@ const envSchema = z.object({
         .map((x) => x.trim())
         .filter(Boolean),
     ),
+  /**
+   * `true` trusts X-Forwarded-For from anyone; a comma-separated list of proxy addresses/CIDRs trusts it
+   * only from those (Fastify validates the entries at startup).
+   */
   TRUST_PROXY: z
-    .enum(['true', 'false', '1', '0', 'yes', 'no'])
+    .string()
     .default('false')
-    .transform((v) => v === 'true' || v === '1' || v === 'yes'),
+    .transform((v): boolean | string[] => {
+      if (v === 'true' || v === '1' || v === 'yes') return true;
+      if (v === 'false' || v === '0' || v === 'no') return false;
+      return v
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean);
+    }),
   UPSTREAM_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
   MAX_BODY_BYTES: z.coerce.number().int().positive().default(10_485_760),
 });

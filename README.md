@@ -22,7 +22,7 @@ Environment variables (see [`.env.example`](.env.example)):
 | `HEARTBEAT_PATH` | Liveness path (default `/health`) |
 | `FORWARD_TARGET_HEADER` | Header carrying the absolute upstream URL (default `x-forward-url`) |
 | `TRUSTED_IPS` | Comma-separated IPv4/IPv6 addresses or CIDR ranges allowed to use the forwarder (`GET` on the heartbeat path is exempt) |
-| `TRUST_PROXY` | If `true`, trust `X-Forwarded-For` for client IP (place the service behind a trusted reverse proxy) |
+| `TRUST_PROXY` | Where the client IP for `TRUSTED_IPS` comes from. `false` (default): the connecting address. Comma-separated proxy addresses or CIDRs: `X-Forwarded-For` is honoured only on connections from those — use this behind a reverse proxy. `true`: honoured from anyone, so only when nothing but the proxy can reach the port |
 | `UPSTREAM_TIMEOUT_MS` | Upstream request timeout |
 | `MAX_BODY_BYTES` | Maximum request body size |
 | `LOG_LEVEL` | Pino log level |
@@ -44,7 +44,7 @@ Example:
 curl -H "X-Forward-Url: https://httpbingo.org/get" http://127.0.0.1:3000/proxy-path
 ```
 
-The path on the forwarder is ignored for upstream routing; only the header URL matters.
+The path on the forwarder is ignored for upstream routing; only the header URL matters. Proxy-chain headers (`Forwarded`, `X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `X-Real-IP`) are not passed upstream.
 
 ## Docker
 
@@ -59,7 +59,7 @@ make up
 
 The image compiles TypeScript in a build stage (`npm run build`) and runs `node dist/server.js`; `tsx` is a dev dependency, used only by `make dev` and `make test`.
 
-The published host port and the process listen port inside the container both follow **`PORT`** (default `3000`). Compose publishes the port on **`127.0.0.1` only**: remote clients should come through a reverse proxy on the host (TLS, client allowlist). Requests from the host reach the container from the Docker network's gateway address (e.g. `172.20.0.1`), so that is the address to list in `TRUSTED_IPS` for them.
+The published host port and the process listen port inside the container both follow **`PORT`** (default `3000`). Compose publishes the port on **`127.0.0.1` only**: remote clients should come through a reverse proxy on the host (TLS, client allowlist). Requests from the host reach the container from the Docker network's gateway address (e.g. `172.20.0.1`): put that address in `TRUST_PROXY`, have the proxy set `X-Forwarded-For` to the client address (nginx: `proxy_set_header X-Forwarded-For $remote_addr;`), and list the real clients in `TRUSTED_IPS`.
 
 Compose includes an [autoheal](https://hub.docker.com/r/willfarrell/autoheal) sidecar that restarts unhealthy containers. Set `TRUSTED_IPS` to include every client that may call the forwarder. **`GET` heartbeat requests skip the IP whitelist** (other methods on that path do not), so Docker health checks do not require listing `127.0.0.1` unless you also hit other routes from localhost.
 

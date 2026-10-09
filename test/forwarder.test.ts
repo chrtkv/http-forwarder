@@ -31,6 +31,11 @@ async function createEchoUpstream() {
     return {
       auth: request.headers.authorization ?? null,
       url: request.url,
+      proxyChain: {
+        forwarded: request.headers.forwarded ?? null,
+        'x-forwarded-for': request.headers['x-forwarded-for'] ?? null,
+        'x-real-ip': request.headers['x-real-ip'] ?? null,
+      },
     };
   });
   app.post('/echo', async (request) => {
@@ -147,6 +152,69 @@ describe(
           },
         });
         assert.equal(res.status, 200);
+      } finally {
+        await app.close();
+        await upstream.close();
+      }
+    });
+
+    test('TRUST_PROXY list trusts X-Forwarded-For only from those proxies', async () => {
+      const upstream = await createEchoUpstream();
+      async function statusFor(trustProxy: string, forwardedFor: string) {
+        const app = await buildApp(cfg({ TRUST_PROXY: trustProxy, TRUSTED_IPS: '10.0.0.1' }));
+        await app.listen({ port: 0, host: '127.0.0.1' });
+        try {
+          const addr = app.server.address();
+          const port = typeof addr === 'object' && addr ? addr.port : 0;
+          const res = await fetch(`http://127.0.0.1:${port}/x`, {
+            ...fetchOpts,
+            headers: { 'x-forward-url': `${upstream.origin}/echo`, 'x-forwarded-for': forwardedFor },
+          });
+          await res.arrayBuffer();
+          return res.status;
+        } finally {
+          await app.close();
+        }
+      }
+      try {
+        // The test client connects from 127.0.0.1, so that address plays the proxy.
+        assert.equal(await statusFor('127.0.0.1', '10.0.0.1'), 200);
+        // An entry the client put before the proxy's own is not taken as the client address.
+        assert.equal(await statusFor('127.0.0.1', '10.0.0.1, 10.0.0.2'), 403);
+        // From a peer that is not a listed proxy the header is ignored.
+        assert.equal(await statusFor('10.9.9.9', '10.0.0.1'), 403);
+      } finally {
+        await upstream.close();
+      }
+    });
+
+    test('invalid TRUST_PROXY entry fails at startup', async () => {
+      await assert.rejects(buildApp(cfg({ TRUST_PROXY: 'not-an-address' })));
+    });
+
+    test('proxy-chain headers are not passed upstream', async () => {
+      const upstream = await createEchoUpstream();
+      const app = await buildApp(cfg({}));
+      await app.listen({ port: 0, host: '127.0.0.1' });
+      try {
+        const addr = app.server.address();
+        const port = typeof addr === 'object' && addr ? addr.port : 0;
+        const res = await fetch(`http://127.0.0.1:${port}/x`, {
+          ...fetchOpts,
+          headers: {
+            'x-forward-url': `${upstream.origin}/echo`,
+            'x-forwarded-for': '10.0.0.1',
+            'x-real-ip': '10.0.0.1',
+            forwarded: 'for=10.0.0.1',
+          },
+        });
+        assert.equal(res.status, 200);
+        const json = (await res.json()) as { proxyChain: Record<string, string | null> };
+        assert.deepEqual(json.proxyChain, {
+          forwarded: null,
+          'x-forwarded-for': null,
+          'x-real-ip': null,
+        });
       } finally {
         await app.close();
         await upstream.close();
