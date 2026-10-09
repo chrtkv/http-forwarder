@@ -57,6 +57,8 @@ make docker-build
 make up
 ```
 
+The image compiles TypeScript in a build stage (`npm run build`) and runs `node dist/server.js`; `tsx` is a dev dependency, used only by `make dev` and `make test`.
+
 The published host port and the process listen port inside the container both follow **`PORT`** (default `3000`). Compose publishes the port on **`127.0.0.1` only**: remote clients should come through a reverse proxy on the host (TLS, client allowlist). Requests from the host reach the container from the Docker network's gateway address (e.g. `172.20.0.1`), so that is the address to list in `TRUSTED_IPS` for them.
 
 Compose includes an [autoheal](https://hub.docker.com/r/willfarrell/autoheal) sidecar that restarts unhealthy containers. Set `TRUSTED_IPS` to include every client that may call the forwarder. **`GET` heartbeat requests skip the IP whitelist** (other methods on that path do not), so Docker health checks do not require listing `127.0.0.1` unless you also hit other routes from localhost.
