@@ -6,7 +6,10 @@ x-logging: &logging
 
 services:
   forwarder:
-    build: .
+    build:
+      context: .
+      # Pull the base image on every build: a rebuild then carries Node's latest patch release.
+      pull: true
     image: forwarder:latest
     restart: unless-stopped
     ports:
